@@ -1,0 +1,32 @@
+#!/usr/bin/env -S uv run --script
+# /// script
+# requires-python = ">=3.11"
+# dependencies = [
+#     "numpy",
+# ]
+# ///
+import numpy as np
+import sys
+
+def normalize(numbers):
+    arr = np.array(numbers, dtype=float)
+    total = np.sum(arr)
+    if total == 0:
+        raise ValueError("Sum of the elements is zero; cannot normalize.")
+    normalized_arr = (arr / total).round(3)
+    return normalized_arr
+
+if __name__ == "__main__":
+    # Check if the user provided the required arguments
+    if len(sys.argv) < 2:
+        print("Usage: python normalize.py <num1 num2 num3 ...>")
+        sys.exit(1)
+
+    try:
+        # Convert command line arguments to a list of floats
+        numbers = list(map(float, sys.argv[1:]))
+        normalized_numbers = normalize(numbers)
+        print("Normalized numbers:", normalized_numbers)
+    except ValueError as e:
+        print(f"Error: {e}")
+        sys.exit(1)
