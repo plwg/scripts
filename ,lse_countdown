@@ -14,6 +14,7 @@ from itertools import cycle
 import pytz
 import os
 
+
 def get_next_trading_day(start_date, holidays):
     next_day = start_date + datetime.timedelta(days=1)
     while True:
@@ -96,12 +97,12 @@ def get_lse_status():
 
 def main():
     spinner = cycle(reversed(["⣾", "⣽", "⣻", "⢿", "⡿", "⣟", "⣯", "⣷"]))
-    os.system('clear')
+    os.system("clear")
     try:
         while True:
             # Hide cursor
             # Show cursor with print('\033[?25h', end="")
-            print('\033[?25l', end="")
+            print("\033[?25l", end="")
             is_open, next_event = get_lse_status()
             now = datetime.datetime.now(pytz.timezone("Europe/London"))
             remaining = next_event - now
@@ -126,7 +127,7 @@ def main():
 
     except KeyboardInterrupt:
         # Show cursor
-        print('\033[?25h', end="")
+        print("\033[?25h", end="")
         print("\nCountdown stopped.")
 
 
