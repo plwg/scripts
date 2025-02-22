@@ -69,7 +69,7 @@ def get_lse_status():
 
     if current_date > max(lse_holidays | lse_half_days):
         raise ValueError("LSE trading holiday list is not up-to-date.")
-    
+
     if len(lse_holidays & lse_half_days) != 0:
         raise ValueError("Some day is specified as both holiday and half day.")
 
