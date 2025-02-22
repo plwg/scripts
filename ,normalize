@@ -13,7 +13,7 @@ def normalize(numbers):
     total = np.sum(arr)
     if total == 0:
         raise ValueError("Sum of the elements is zero; cannot normalize.")
-    normalized_arr = (arr / total).round(3)
+    normalized_arr = (arr / total).round(3) * 100
     return normalized_arr
 
 if __name__ == "__main__":
