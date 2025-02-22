@@ -104,7 +104,6 @@ def main():
     try:
         while True:
             # Hide cursor
-            # Show cursor with print('\033[?25h', end="")
             print("\033[?25l", end="")
             is_open, next_event = get_lse_status()
             now = datetime.datetime.now(pytz.timezone("Europe/London"))
