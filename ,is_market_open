@@ -1,0 +1,245 @@
+#!/usr/bin/env -S uv run --script
+# /// script
+# requires-python = ">=3.9"
+# dependencies = [
+#     "pytz>=2025.1",
+# ]
+# ///
+
+import datetime
+import os
+import time
+from datetime import date
+from functools import cache
+from itertools import cycle
+
+import pytz
+
+
+@cache
+def get_next_trading_day(start_date, holidays):
+    next_day = start_date + datetime.timedelta(days=1)
+    while True:
+        if next_day.weekday() < 5 and next_day not in holidays:
+            return next_day
+        next_day += datetime.timedelta(days=1)
+
+
+@cache
+def format_timedelta(delta):
+    total_seconds = int(delta.total_seconds())
+    hours, remainder = divmod(total_seconds, 3600)
+    minutes, seconds = divmod(remainder, 60)
+    return f"{hours:02d}:{minutes:02d}:{seconds:02d}"
+
+
+@cache
+def get_lse_info():
+    timezone = pytz.timezone("Europe/London")
+
+    start_time = datetime.time(8, 0)
+    end_time = datetime.time(16, 30)
+    half_day_end_time = datetime.time(12, 30)
+
+    # https://www.londonstockexchange.com/equities-trading/business-days
+    holidays = {
+        date(2025, 4, 18),
+        date(2025, 4, 21),
+        date(2025, 5, 5),
+        date(2025, 5, 26),
+        date(2025, 8, 25),
+        date(2025, 12, 25),
+        date(2025, 12, 26),
+        date(2026, 1, 1),
+        date(2026, 4, 3),
+        date(2026, 4, 6),
+        date(2026, 5, 4),
+        date(2026, 5, 25),
+        date(2026, 8, 31),
+        date(2026, 12, 25),
+        date(2026, 12, 28),
+        date(2027, 1, 1),
+    }
+
+    half_days = {
+        date(2025, 12, 24),
+        date(2025, 12, 31),
+        date(2026, 12, 24),
+        date(2026, 12, 31),
+    }
+
+    return "LSE", timezone, start_time, end_time, half_day_end_time, holidays, half_days
+
+
+@cache
+def get_nyse_info():
+    timezone = pytz.timezone("America/New_York")
+
+    start_time = datetime.time(9, 30)
+    end_time = datetime.time(16, 0)
+    half_day_end_time = datetime.time(13, 00)
+
+    # https://ir.theice.com/press/news-details/2024/NYSE-Group-Announces-2025-2026-and-2027-Holiday-and-Early-Closings-Calendar/default.aspx
+    holidays = {
+        date(2025, 1, 1),
+        date(2025, 1, 20),
+        date(2025, 2, 17),
+        date(2025, 4, 18),
+        date(2025, 5, 26),
+        date(2025, 6, 19),
+        date(2025, 7, 4),
+        date(2025, 9, 1),
+        date(2025, 11, 27),
+        date(2025, 12, 25),
+        date(2026, 1, 1),
+        date(2026, 1, 19),
+        date(2026, 2, 16),
+        date(2026, 4, 3),
+        date(2026, 5, 25),
+        date(2026, 6, 19),
+        date(2026, 7, 3),
+        date(2026, 9, 7),
+        date(2026, 11, 26),
+        date(2026, 12, 25),
+        date(2027, 1, 1),
+        date(2027, 1, 18),
+        date(2027, 2, 15),
+        date(2027, 3, 26),
+        date(2027, 5, 31),
+        date(2027, 6, 18),
+        date(2027, 7, 5),
+        date(2027, 9, 6),
+        date(2027, 11, 25),
+        date(2027, 12, 24),
+    }
+
+    half_days = {
+        date(2025, 7, 3),
+        date(2025, 11, 28),
+        date(2025, 12, 24),
+        date(2026, 11, 27),
+        date(2026, 12, 24),
+        date(2027, 11, 26),
+    }
+
+    return (
+        "NYSE",
+        timezone,
+        start_time,
+        end_time,
+        half_day_end_time,
+        holidays,
+        half_days,
+    )
+
+
+def get_market_status(
+    market_name, timezone, start_time, end_time, half_day_end_time, holidays, half_days
+):
+    # Trading hours configuration
+    local_time = datetime.datetime.now(timezone)
+    current_time = local_time.time()
+    current_date = local_time.date()
+
+    if current_date > max(holidays | half_days):
+        msg = f"{market_name} trading holiday list is not up-to-date."
+        raise ValueError(msg)
+
+    if len(holidays & half_days) != 0:
+        raise ValueError("Some day is specified as both holiday and half day.")
+
+    # Determine market status
+    if current_date in holidays or local_time.weekday() >= 5:
+        is_open = False
+    elif current_date in half_days:
+        is_open = start_time <= current_time <= half_day_end_time
+    else:
+        is_open = start_time <= current_time <= end_time
+
+    # Calculate next event time
+    if is_open:
+        event_time = datetime.datetime.combine(current_date, end_time)
+    elif current_date.weekday() < 5 and current_date not in holidays:
+        if current_time < start_time:
+            event_time = datetime.datetime.combine(current_date, start_time)
+        else:
+            next_day = get_next_trading_day(current_date, tuple(holidays))
+            event_time = datetime.datetime.combine(next_day, start_time)
+    else:
+        next_day = get_next_trading_day(current_date, tuple(holidays))
+        event_time = datetime.datetime.combine(next_day, start_time)
+
+    event_time = timezone.localize(event_time)
+    return is_open, event_time
+
+
+def render_countdown(market_name, timezone, is_open, next_event, spinner_char):
+    now = datetime.datetime.now(timezone)
+    remaining = next_event - now
+
+    countdown = format_timedelta(remaining)
+    status = "OPEN 🟢" if is_open else "CLOSED 🟠"
+    action = "Closes" if is_open else "Opens"
+
+    return f"{market_name.rjust(6)} {status} | {action} in {countdown} {spinner_char}"
+
+
+def main():
+    os.system("clear")
+    print("\033[?25l", end="")  # Hide cursor
+    spinner = cycle(
+        (
+            "🕛",
+            "🕧",
+            "🕐",
+            "🕜",
+            "🕑",
+            "🕝",
+            "🕒",
+            "🕞",
+            "🕓",
+            "🕟",
+            "🕔",
+            "🕠",
+            "🕕",
+            "🕡",
+            "🕖",
+            "🕢",
+            "🕗",
+            "🕣",
+            "🕘",
+            "🕤",
+            "🕙",
+            "🕥",
+            "🕚",
+            "🕦",
+        )
+    )
+    try:
+        print("\033[H")  # Move cursor to home position
+        while True:
+            spinner_char = next(spinner)
+
+            lse_info = get_lse_info()
+            is_lse_open, next_lse_event = get_market_status(*lse_info)
+            nyse_info = get_nyse_info()
+            is_nyse_open, next_nyse_event = get_market_status(*nyse_info)
+
+            lse_clock_line = render_countdown(
+                lse_info[0], lse_info[1], is_lse_open, next_lse_event, spinner_char
+            )
+            nyse_clock_line = render_countdown(
+                nyse_info[0], nyse_info[1], is_nyse_open, next_nyse_event, spinner_char
+            )
+
+            # Print over previous lines and move cursor back up
+            print(f"\r{lse_clock_line}\033[K\n{nyse_clock_line}\033[K\033[2A")
+
+            time.sleep(1)
+
+    except KeyboardInterrupt:
+        print("\n\033[KCountdown stopped.\033[?25h", flush=True)  # Show cursor
+
+
+if __name__ == "__main__":
+    main()
