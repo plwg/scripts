@@ -34,7 +34,6 @@ def format_timedelta(delta):
     return f"{hours:02d}:{minutes:02d}:{seconds:02d}"
 
 
-@cache
 def get_lse_info():
     timezone = pytz.timezone("Europe/London")
     return (
@@ -70,7 +69,6 @@ def get_lse_info():
     )
 
 
-@cache
 def get_nyse_info():
     timezone = pytz.timezone("America/New_York")
     return (
