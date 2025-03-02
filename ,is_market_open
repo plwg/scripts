@@ -132,7 +132,7 @@ def get_market_status(market_info):
         holidays,
         half_days,
     ) = market_info
-    
+
     local_time = datetime.datetime.now(timezone)
     current_time = local_time.time()
     current_date = local_time.date()
@@ -150,13 +150,23 @@ def get_market_status(market_info):
         is_open = start_time <= current_time <= end_time
 
     if is_open:
-        event_time = timezone.localize(datetime.datetime.combine(current_date, end_time))
+        event_time = timezone.localize(
+            datetime.datetime.combine(current_date, end_time)
+        )
     else:
-        if current_date.weekday() < 5 and current_date not in holidays and current_time < start_time:
-            event_time = timezone.localize(datetime.datetime.combine(current_date, start_time))
+        if (
+            current_date.weekday() < 5
+            and current_date not in holidays
+            and current_time < start_time
+        ):
+            event_time = timezone.localize(
+                datetime.datetime.combine(current_date, start_time)
+            )
         else:
             next_day = get_next_trading_day(current_date, tuple(holidays))
-            event_time = timezone.localize(datetime.datetime.combine(next_day, start_time))
+            event_time = timezone.localize(
+                datetime.datetime.combine(next_day, start_time)
+            )
 
     return is_open, event_time
 
@@ -193,13 +203,7 @@ def main():
                 )
 
                 # Update display
-                print(
-                    term.move(0, 0)
-                    + term.clear_eos
-                    + lse_line
-                    + "\n"
-                    + nyse_line
-                )
+                print(term.move(0, 0) + term.clear_eos + lse_line + "\n" + nyse_line)
                 time.sleep(1)
 
         except KeyboardInterrupt:
