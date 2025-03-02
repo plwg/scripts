@@ -153,20 +153,19 @@ def get_market_status(market_info):
         event_time = timezone.localize(
             datetime.datetime.combine(current_date, end_time)
         )
+    elif (
+        current_date.weekday() < 5
+        and current_date not in holidays
+        and current_time < start_time
+    ):
+        event_time = timezone.localize(
+            datetime.datetime.combine(current_date, start_time)
+        )
     else:
-        if (
-            current_date.weekday() < 5
-            and current_date not in holidays
-            and current_time < start_time
-        ):
-            event_time = timezone.localize(
-                datetime.datetime.combine(current_date, start_time)
-            )
-        else:
-            next_day = get_next_trading_day(current_date, tuple(holidays))
-            event_time = timezone.localize(
-                datetime.datetime.combine(next_day, start_time)
-            )
+        next_day = get_next_trading_day(current_date, tuple(holidays))
+        event_time = timezone.localize(
+            datetime.datetime.combine(next_day, start_time)
+        )
 
     return is_open, event_time
 
